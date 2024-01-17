@@ -1,0 +1,45 @@
+## Hydra Settings ##
+defaults:  
+  - _self_  
+  - override hydra/hydra_logging: disabled  
+  - override hydra/job_logging: disabled  
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+
+## Finetuning Settings ##
+dataset:
+  name: glue
+  task_name: sst2
+  text_column_name: sentence
+  num_labels: 2
+
+tokenizer:
+  name: bert-base-uncased
+
+model: 
+  prefix: ""
+  name: bert-base-uncased
+
+optim: 
+  name: AdamW
+  params:
+    lr: 0.001
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    weight_decay: 0.01
+scheduler:
+  name: LinearLR
+
+training_args:
+  output_dir: ckpt/${model.prefix}${model.name}/${optim.name}
+  evaluation_strategy: epoch
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 8
+  max_grad_norm: 1.0
+  num_train_epochs: 20
+  save_strategy: epoch
+
+mlflow:
+  experiment_name: ${model.name}_${optim.name}
