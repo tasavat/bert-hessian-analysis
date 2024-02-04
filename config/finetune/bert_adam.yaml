@@ -15,26 +15,32 @@ dataset:
   text_column_name: sentence
   num_labels: 2
 
+tokenizer:
+  name: bert-base-uncased
+
 model: 
-  prefix: princeton-nlp/
-  name: unsup-simcse-bert-base-uncased
+  prefix: ""
+  name: bert-base-uncased
 
 optim: 
-  name: SGD
+  name: AdamW
   params:
-    lr: 0.001
-    weight_decay: 0.01
+    lr: 1e-6
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    weight_decay: 0
 scheduler:
   name: LinearLR
 
 training_args:
   output_dir: ckpt/${model.prefix}${model.name}/${optim.name}
-  evaluation_strategy: epoch
+  evaluation_strategy: steps
+  eval_steps: 0.1
+  save_steps: 0.1
   per_device_train_batch_size: 8
   per_device_eval_batch_size: 8
-  weight_decay: 0
   max_grad_norm: 1.0
-  num_train_epochs: 20
+  num_train_epochs: 10
   save_strategy: epoch
 
 mlflow:

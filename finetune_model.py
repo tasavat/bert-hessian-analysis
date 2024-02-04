@@ -30,7 +30,7 @@ def _compute_metrics(metric, eval_pred):
     return metric.compute(predictions=predictions, references=labels)
 
 
-@hydra.main(config_path="config", config_name="")
+@hydra.main(config_path="config/finetune", config_name="")
 def main(cfg):
     # load dataset
     dataset = load_dataset(cfg.dataset.name, cfg.dataset.task_name)
