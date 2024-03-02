@@ -22,9 +22,9 @@ dataloader:
   mini_batch_size: 800
   device_ids: null
 
-model: "princeton-nlp/unsup-simcse-bert-base-uncased"
-hessian_dir: "output/hessian/princeton-nlp/unsup-simcse-bert-base-uncased/pretrained"
-output_dir: "output/plot/princeton-nlp/unsup-simcse-bert-base-uncased/pretrained"
+model: "bert-base-uncased"
+hessian_dir: "output/hessian/params/bert-base-uncased/pretrained"
+output_dir: "output/plot/params/bert-base-uncased/pretrained"
 perterbation_sets: 
 - [-0.1, -0.08, -0.06, -0.04, -0.02, 0, 0.02, 0.04, 0.06, 0.08, 0.1]
 - [-0.2, -0.16, -0.12, -0.08, -0.04, 0, 0.04, 0.08, 0.12, 0.16, 0.2]

@@ -15,6 +15,7 @@ from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
 )
+from transformers.modeling_outputs import BaseModelOutputWithPoolingAndCrossAttentions
 from pyhessian import hessian
 
 
@@ -22,10 +23,76 @@ class ModelWrapper(torch.nn.Module):
     def __init__(self, model):
         super().__init__()
         self.model = model
+        
+        self.embeddings = self.model.bert.embeddings        
+        self.encoder = self.model.bert.encoder
 
-    def forward(self, inputs, attention_mask):
+    def forward(
+        self, 
+        inputs, 
+        attention_mask,
+        embed_forward=False,
+        encode_forward=False,
+        embeddings=None,
+    ):
+        if embed_forward:
+            embeddings = self._embed_forward(inputs)
+            return embeddings
+        if encode_forward:
+            assert embeddings is not None, "embeddings must be provided"
+            return self._encode_forward(inputs, embeddings, attention_mask)
         outputs = self.model(inputs, attention_mask=attention_mask)
         logits = outputs.logits
+        return logits
+    
+    def _embed_forward(self, inputs):
+        with torch.no_grad():
+            embeddings = self.embeddings(
+                input_ids=inputs,
+                position_ids=None,
+                token_type_ids=None,
+                inputs_embeds=None,
+                past_key_values_length=0,
+            )
+        return embeddings
+    
+    def _encode_forward(self, inputs, embeddings, attention_mask):
+        input_shape = inputs.size()
+        extended_attention_mask = self.model.get_extended_attention_mask(attention_mask, input_shape)
+        head_mask = self.model.get_head_mask(None, self.model.config.num_hidden_layers)
+        output_attentions = self.model.config.output_attentions
+        output_hidden_states = self.model.config.output_hidden_states
+        return_dict = self.model.config.use_return_dict
+        
+        encoder_outputs = self.encoder(
+            embeddings, 
+            attention_mask=extended_attention_mask,
+            head_mask=head_mask,
+            encoder_hidden_states=None,
+            encoder_attention_mask=None,
+            past_key_values=None,
+            use_cache=False,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+        sequence_output = encoder_outputs[0]
+        pooled_output = self.model.bert.pooler(sequence_output) if self.model.bert.pooler is not None else None
+        
+        if not return_dict:
+            return (sequence_output, pooled_output) + encoder_outputs[1:]
+        
+        bert_outputs = BaseModelOutputWithPoolingAndCrossAttentions(
+            last_hidden_state=sequence_output,
+            pooler_output=pooled_output,
+            past_key_values=encoder_outputs.past_key_values,
+            hidden_states=encoder_outputs.hidden_states,
+            attentions=encoder_outputs.attentions,
+            cross_attentions=encoder_outputs.cross_attentions,
+        )
+        pooled_output = bert_outputs[1]
+        pooled_output = self.model.dropout(pooled_output)
+        logits = self.model.classifier(pooled_output)
         return logits
 
 
@@ -33,12 +100,23 @@ def _tokenize_function(example, tokenizer=None, text_column_name=None):
     return tokenizer(example[text_column_name], padding="max_length", truncation=True)
 
 
-def _convert_to_hessian_dataloader(dataloader, cfg):
+def _convert_to_hessian_dataloader(dataloader, backprop_inputs, cfg):
     assert (cfg.hessian_batch_size % cfg.mini_hessian_batch_size == 0)
     batch_num = cfg.hessian_batch_size // cfg.mini_hessian_batch_size
 
     if batch_num == 1:
         for data in dataloader:
+            inputs, attention_masks, labels = data["input_ids"], data["attention_mask"], data["label"]
+            inputs = torch.stack(inputs, dim=0).transpose(0, 1)
+            attention_masks = torch.stack(attention_masks, dim=0).transpose(0, 1)
+            hessian_dataloader = (inputs, attention_masks, labels)
+            break
+    elif backprop_inputs:
+        # specify the index of the data to be used for Hessian computation
+        for index, data in enumerate(dataloader):
+            batch_num = 1
+            if index != cfg.data_index:
+                continue
             inputs, attention_masks, labels = data["input_ids"], data["attention_mask"], data["label"]
             inputs = torch.stack(inputs, dim=0).transpose(0, 1)
             attention_masks = torch.stack(attention_masks, dim=0).transpose(0, 1)
@@ -110,13 +188,14 @@ def main(cfg):
         batch_size=cfg.dataloader.mini_hessian_batch_size,
         shuffle=True,
     )
-    hessian_dataloader, batch_num = _convert_to_hessian_dataloader(dataloader, cfg.dataloader)
+    hessian_dataloader, batch_num = _convert_to_hessian_dataloader(dataloader, cfg.hessian.backprop_inputs, cfg.dataloader)
 
     # model
     model = AutoModelForSequenceClassification.from_pretrained(cfg.model, use_safetensors=True)
     model = ModelWrapper(model)
     model = model.cuda()
-    model = torch.nn.DataParallel(model, device_ids=cfg.dataloader.device_ids)
+    if not cfg.hessian.backprop_inputs:
+        model = torch.nn.DataParallel(model, device_ids=cfg.dataloader.device_ids)
     model.eval()
 
     # criterion
@@ -127,12 +206,14 @@ def main(cfg):
         hessian_comp = hessian(model,
                                criterion,
                                data=hessian_dataloader,
-                               cuda=True)
+                               cuda=True,
+                               backprop_inputs=cfg.hessian.backprop_inputs)
     else:
         hessian_comp = hessian(model,
                                criterion,
                                dataloader=hessian_dataloader,
-                               cuda=True)
+                               cuda=True,
+                               backprop_inputs=cfg.hessian.backprop_inputs)
 
     print('********** finish data loading and begin Hessian computation **********')
     top_eigenvalues, top_eigenvectors = hessian_comp.eigenvalues(top_n=cfg.hessian.top_n)

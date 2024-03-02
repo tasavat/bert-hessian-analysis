@@ -35,7 +35,15 @@ class hessian():
         iii) the estimated eigenvalue density
     """
 
-    def __init__(self, model, criterion, data=None, dataloader=None, cuda=True):
+    def __init__(
+        self, 
+        model, 
+        criterion, 
+        data=None, 
+        dataloader=None, 
+        cuda=True,
+        backprop_inputs=False,
+        ):
         """
         model: the model that needs Hessain information
         criterion: the loss function
@@ -49,6 +57,7 @@ class hessian():
 
         self.model = model.eval()  # make model is in evaluation model
         self.criterion = criterion
+        self._backprop_inputs = backprop_inputs
 
         if data != None:
             self.data = data
@@ -67,9 +76,22 @@ class hessian():
             self.inputs, self.attention_masks, self.targets = self.data
             if self.device == 'cuda':
                 self.inputs, self.attention_masks, self.targets = self.inputs.cuda(), self.attention_masks.cuda(), self.targets.cuda()
-
             # if we only compute the Hessian information for a single batch data, we can re-use the gradients.
-            outputs = self.model(self.inputs, self.attention_masks)
+            if self._backprop_inputs:
+                embeddings = self.model(
+                    self.inputs.to(self.device),
+                    self.attention_masks.to(self.device),
+                    embed_forward=True
+                )
+                embeddings.requires_grad = True
+                outputs = self.model(
+                    self.inputs.to(self.device), 
+                    self.attention_masks.to(self.device),
+                    encode_forward=True,
+                    embeddings=embeddings
+                )
+            else:
+                outputs = self.model(self.inputs, self.attention_masks)
             loss = self.criterion(outputs, self.targets)
             loss.backward(create_graph=True)
 
@@ -77,14 +99,16 @@ class hessian():
         params, gradsH = get_params_grad(self.model)
         self.params = params
         self.gradsH = gradsH  # gradient used for Hessian computation
+        self.embedding = embeddings if self._backprop_inputs else None
 
     def dataloader_hv_product(self, v):
 
+        if self._backprop_inputs:
+            raise NotImplementedError("Backprop through inputs is only support for a songle data point") 
+
         device = self.device
         num_data = 0  # count the number of datum points in the dataloader
-
-        THv = [torch.zeros(p.size()).to(device) for p in self.params
-              ]  # accumulate result
+        THv = [torch.zeros(p.size()).to(device) for p in self.params]  # accumulate result
         for inputs, attention_masks, targets in self.data:
             self.model.zero_grad()
             tmp_num_data = inputs.size(0)
@@ -127,8 +151,10 @@ class hessian():
 
         while computed_dim < top_n:
             eigenvalue = None
-            v = [torch.randn(p.size()).to(device) for p in self.params
-                ]  # generate random vector
+            if self._backprop_inputs:
+                v = [torch.randn((1, 512, 768)).to(device)]  # generate random vector
+            else:
+                v = [torch.randn(p.size()).to(device) for p in self.params]  # generate random vector
             v = normalization(v)  # normalize the vector
 
             for i in tqdm(range(maxIter)):
@@ -138,7 +164,10 @@ class hessian():
                 if self.full_dataset:
                     tmp_eigenvalue, Hv = self.dataloader_hv_product(v)
                 else:
-                    Hv = hessian_vector_product(self.gradsH, self.params, v)
+                    if self._backprop_inputs:
+                        Hv = hessian_vector_product(self.embedding.grad, self.embedding, v)
+                    else: 
+                        Hv = hessian_vector_product(self.gradsH, self.params, v)
                     tmp_eigenvalue = group_product(Hv, v).cpu().item()
 
                 v = normalization(Hv)
@@ -146,8 +175,7 @@ class hessian():
                 if eigenvalue == None:
                     eigenvalue = tmp_eigenvalue
                 else:
-                    if abs(eigenvalue - tmp_eigenvalue) / (abs(eigenvalue) +
-                                                           1e-6) < tol:
+                    if abs(eigenvalue - tmp_eigenvalue) / (abs(eigenvalue) + 1e-6) < tol:
                         break
                     else:
                         eigenvalue = tmp_eigenvalue
@@ -170,10 +198,10 @@ class hessian():
 
         for i in range(maxIter):
             self.model.zero_grad()
-            v = [
-                torch.randint_like(p, high=2, device=device)
-                for p in self.params
-            ]
+            if self._backprop_inputs:
+                v = [torch.rand_like(self.embedding)]
+            else:
+                v = [torch.randint_like(p, high=2, device=device) for p in self.params]
             # generate Rademacher random variables
             for v_i in v:
                 v_i[v_i == 0] = -1
@@ -181,7 +209,10 @@ class hessian():
             if self.full_dataset:
                 _, Hv = self.dataloader_hv_product(v)
             else:
-                Hv = hessian_vector_product(self.gradsH, self.params, v)
+                if self._backprop_inputs:
+                    Hv = hessian_vector_product(self.embedding.grad, self.embedding, v)
+                else:
+                    Hv = hessian_vector_product(self.gradsH, self.params, v)
             trace_vhv.append(group_product(Hv, v).cpu().item())
             if abs(np.mean(trace_vhv) - trace) / (trace + 1e-6) < tol:
                 return trace_vhv

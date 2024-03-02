@@ -1,0 +1,31 @@
+## Hydra Settings ##
+defaults:  
+  - _self_  
+  - override hydra/hydra_logging: disabled  
+  - override hydra/job_logging: disabled  
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+
+## Finetuning Settings ##
+dataset:
+  name: glue
+  task_name: sst2
+  text_column_name: sentence
+
+tokenizer:
+  name: bert-base-uncased
+
+dataloader:
+  hessian_batch_size: 800
+  mini_hessian_batch_size: 2
+  device_ids: null
+
+model: "ckpt/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-2808"
+
+hessian:
+  top_n: 15
+  backprop_inputs: False
+
+output_dir: "output/hessian/params/princeton-nlp-unsup-simcse-bert-base-uncased/SGD/minloss"
