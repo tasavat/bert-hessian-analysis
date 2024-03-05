@@ -1,4 +1,4 @@
-#*
+# *
 # @file Different utility functions
 # Copyright (c) Zhewei Yao, Amir Gholami
 # All rights reserved.
@@ -16,7 +16,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with PyHessian.  If not, see <http://www.gnu.org/licenses/>.
-#*
+# *
 
 import torch
 import math
@@ -24,10 +24,17 @@ from torch.autograd import Variable
 import numpy as np
 
 from tqdm import tqdm
-from pyhessian.utils import group_product, group_add, normalization, get_params_grad, hessian_vector_product, orthnormal
+from pyhessian.utils import (
+    group_product,
+    group_add,
+    normalization,
+    get_params_grad,
+    hessian_vector_product,
+    orthnormal,
+)
 
 
-class hessian():
+class hessian:
     """
     The class used to compute :
         i) the top 1 (n) eigenvalue(s) of the neural network
@@ -36,14 +43,14 @@ class hessian():
     """
 
     def __init__(
-        self, 
-        model, 
-        criterion, 
-        data=None, 
-        dataloader=None, 
+        self,
+        model,
+        criterion,
+        data=None,
+        dataloader=None,
         cuda=True,
         backprop_inputs=False,
-        ):
+    ):
         """
         model: the model that needs Hessain information
         criterion: the loss function
@@ -52,8 +59,9 @@ class hessian():
         """
 
         # make sure we either pass a single batch or a dataloader
-        assert (data != None and dataloader == None) or (data == None and
-                                                         dataloader != None)
+        assert (data != None and dataloader == None) or (
+            data == None and dataloader != None
+        )
 
         self.model = model.eval()  # make model is in evaluation model
         self.criterion = criterion
@@ -67,28 +75,32 @@ class hessian():
             self.full_dataset = True
 
         if cuda:
-            self.device = 'cuda'
+            self.device = "cuda"
         else:
-            self.device = 'cpu'
+            self.device = "cpu"
 
         # pre-processing for single batch case to simplify the computation.
         if not self.full_dataset:
             self.inputs, self.attention_masks, self.targets = self.data
-            if self.device == 'cuda':
-                self.inputs, self.attention_masks, self.targets = self.inputs.cuda(), self.attention_masks.cuda(), self.targets.cuda()
+            if self.device == "cuda":
+                self.inputs, self.attention_masks, self.targets = (
+                    self.inputs.cuda(),
+                    self.attention_masks.cuda(),
+                    self.targets.cuda(),
+                )
             # if we only compute the Hessian information for a single batch data, we can re-use the gradients.
             if self._backprop_inputs:
                 embeddings = self.model(
                     self.inputs.to(self.device),
                     self.attention_masks.to(self.device),
-                    embed_forward=True
+                    embed_forward=True,
                 )
                 embeddings.requires_grad = True
                 outputs = self.model(
-                    self.inputs.to(self.device), 
+                    self.inputs.to(self.device),
                     self.attention_masks.to(self.device),
                     encode_forward=True,
-                    embeddings=embeddings
+                    embeddings=embeddings,
                 )
             else:
                 outputs = self.model(self.inputs, self.attention_masks)
@@ -99,19 +111,22 @@ class hessian():
         params, gradsH = get_params_grad(self.model)
         self.params = params
         self.gradsH = gradsH  # gradient used for Hessian computation
-        
+
         self.embeddings = embeddings if self._backprop_inputs else None
         self.attention_masks = self.attention_masks if self._backprop_inputs else None
         self.targets = self.targets if self._backprop_inputs else None
 
     def dataloader_hv_product(self, v):
-
         if self._backprop_inputs:
-            raise NotImplementedError("Backprop through inputs is only support for a songle data point") 
+            raise NotImplementedError(
+                "Backprop through inputs is only support for a songle data point"
+            )
 
         device = self.device
         num_data = 0  # count the number of datum points in the dataloader
-        THv = [torch.zeros(p.size()).to(device) for p in self.params]  # accumulate result
+        THv = [
+            torch.zeros(p.size()).to(device) for p in self.params
+        ]  # accumulate result
         for inputs, attention_masks, targets in self.data:
             self.model.zero_grad()
             tmp_num_data = inputs.size(0)
@@ -120,15 +135,10 @@ class hessian():
             loss.backward(create_graph=True)
             params, gradsH = get_params_grad(self.model)
             self.model.zero_grad()
-            Hv = torch.autograd.grad(gradsH,
-                                     params,
-                                     grad_outputs=v,
-                                     only_inputs=True,
-                                     retain_graph=False)
-            THv = [
-                THv1 + Hv1 * float(tmp_num_data) + 0.
-                for THv1, Hv1 in zip(THv, Hv)
-            ]
+            Hv = torch.autograd.grad(
+                gradsH, params, grad_outputs=v, only_inputs=True, retain_graph=False
+            )
+            THv = [THv1 + Hv1 * float(tmp_num_data) + 0.0 for THv1, Hv1 in zip(THv, Hv)]
             num_data += float(tmp_num_data)
 
         THv = [THv1 / float(num_data) for THv1 in THv]
@@ -157,7 +167,9 @@ class hessian():
             if self._backprop_inputs:
                 v = [torch.randn((1, 512, 768)).to(device)]  # generate random vector
             else:
-                v = [torch.randn(p.size()).to(device) for p in self.params]  # generate random vector
+                v = [
+                    torch.randn(p.size()).to(device) for p in self.params
+                ]  # generate random vector
             v = normalization(v)  # normalize the vector
 
             for i in tqdm(range(maxIter)):
@@ -168,8 +180,10 @@ class hessian():
                     tmp_eigenvalue, Hv = self.dataloader_hv_product(v)
                 else:
                     if self._backprop_inputs:
-                        Hv = hessian_vector_product(self.embeddings.grad, self.embeddings, v)
-                    else: 
+                        Hv = hessian_vector_product(
+                            self.embeddings.grad, self.embeddings, v
+                        )
+                    else:
                         Hv = hessian_vector_product(self.gradsH, self.params, v)
                     tmp_eigenvalue = group_product(Hv, v).cpu().item()
 
@@ -178,7 +192,10 @@ class hessian():
                 if eigenvalue == None:
                     eigenvalue = tmp_eigenvalue
                 else:
-                    if abs(eigenvalue - tmp_eigenvalue) / (abs(eigenvalue) + 1e-6) < tol:
+                    if (
+                        abs(eigenvalue - tmp_eigenvalue) / (abs(eigenvalue) + 1e-6)
+                        < tol
+                    ):
                         break
                     else:
                         eigenvalue = tmp_eigenvalue
@@ -197,7 +214,7 @@ class hessian():
 
         device = self.device
         trace_vhv = []
-        trace = 0.
+        trace = 0.0
 
         for i in range(maxIter):
             self.model.zero_grad()
@@ -213,7 +230,9 @@ class hessian():
                 _, Hv = self.dataloader_hv_product(v)
             else:
                 if self._backprop_inputs:
-                    Hv = hessian_vector_product(self.embeddings.grad, self.embeddings, v)
+                    Hv = hessian_vector_product(
+                        self.embeddings.grad, self.embeddings, v
+                    )
                 else:
                     Hv = hessian_vector_product(self.gradsH, self.params, v)
             trace_vhv.append(group_product(Hv, v).cpu().item())
@@ -236,10 +255,7 @@ class hessian():
         weight_list_full = []
 
         for k in range(n_v):
-            v = [
-                torch.randint_like(p, high=2, device=device)
-                for p in self.params
-            ]
+            v = [torch.randint_like(p, high=2, device=device) for p in self.params]
             # generate Rademacher random variables
             for v_i in v:
                 v_i[v_i == 0] = -1
@@ -258,8 +274,7 @@ class hessian():
                     if self.full_dataset:
                         _, w_prime = self.dataloader_hv_product(v)
                     else:
-                        w_prime = hessian_vector_product(
-                            self.gradsH, self.params, v)
+                        w_prime = hessian_vector_product(self.gradsH, self.params, v)
                     alpha = group_product(w_prime, v)
                     alpha_list.append(alpha.cpu().item())
                     w = group_add(w_prime, v, alpha=-alpha)
@@ -267,7 +282,7 @@ class hessian():
                 else:
                     beta = torch.sqrt(group_product(w, w))
                     beta_list.append(beta.cpu().item())
-                    if beta_list[-1] != 0.:
+                    if beta_list[-1] != 0.0:
                         # We should re-orth it
                         v = orthnormal(w, v_list)
                         v_list.append(v)
@@ -279,8 +294,7 @@ class hessian():
                     if self.full_dataset:
                         _, w_prime = self.dataloader_hv_product(v)
                     else:
-                        w_prime = hessian_vector_product(
-                            self.gradsH, self.params, v)
+                        w_prime = hessian_vector_product(self.gradsH, self.params, v)
                     alpha = group_product(w_prime, v)
                     alpha_list.append(alpha.cpu().item())
                     w_tmp = group_add(w_prime, v, alpha=-alpha)
@@ -295,7 +309,7 @@ class hessian():
             a_, b_ = torch.linalg.eig(T)
 
             eigen_list = a_[:, 0]
-            weight_list = b_[0, :]**2
+            weight_list = b_[0, :] ** 2
             eigen_list_full.append(list(eigen_list.cpu().numpy()))
             weight_list_full.append(list(weight_list.cpu().numpy()))
 

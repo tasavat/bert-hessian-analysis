@@ -1,4 +1,4 @@
-#*
+# *
 # @file Different utility functions
 # Copyright (c) Zhewei Yao, Amir Gholami
 # All rights reserved.
@@ -16,7 +16,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with PyHessian.  If not, see <http://www.gnu.org/licenses/>.
-#*
+# *
 
 import torch
 import math
@@ -68,7 +68,7 @@ def get_params_grad(model):
         if not param.requires_grad:
             continue
         params.append(param)
-        grads.append(0. if param.grad is None else param.grad + 0.)
+        grads.append(0.0 if param.grad is None else param.grad + 0.0)
     return params, grads
 
 
@@ -79,11 +79,9 @@ def hessian_vector_product(gradsH, params, v):
     params is the corresponding variables,
     v is the vector.
     """
-    hv = torch.autograd.grad(gradsH,
-                             params,
-                             grad_outputs=v,
-                             only_inputs=True,
-                             retain_graph=True)
+    hv = torch.autograd.grad(
+        gradsH, params, grad_outputs=v, only_inputs=True, retain_graph=True
+    )
     return hv
 
 

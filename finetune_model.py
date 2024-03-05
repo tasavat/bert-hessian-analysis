@@ -24,6 +24,7 @@ from transformers.integrations import MLflowCallback
 def _tokenize_function(example, tokenizer=None, text_column_name=None):
     return tokenizer(example[text_column_name], padding="max_length", truncation=True)
 
+
 def _compute_metrics(metric, eval_pred):
     logits, labels = eval_pred
     predictions = np.argmax(logits, axis=-1)

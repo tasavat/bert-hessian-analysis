@@ -1,4 +1,4 @@
-#*
+# *
 # @file Different utility functions
 # Copyright (c) Zhewei Yao, Amir Gholami
 # All rights reserved.
@@ -16,11 +16,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with PyHessian.  If not, see <http://www.gnu.org/licenses/>.
-#*
+# *
 
 import argparse
 import importlib
 import os
 
-from .utils import group_product, group_add, normalization, get_params_grad, hessian_vector_product, orthnormal
+from .utils import (
+    group_product,
+    group_add,
+    normalization,
+    get_params_grad,
+    hessian_vector_product,
+    orthnormal,
+)
 from .hessian import hessian
