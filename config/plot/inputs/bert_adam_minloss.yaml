@@ -20,11 +20,14 @@ tokenizer:
 dataloader:
   batch_size: 800
   mini_batch_size: 800
-  device_ids: null
+  data_index: 0
 
 model: "ckpt/bert-base-uncased/AdamW_lr1e-6/checkpoint-4212"
-hessian_dir: "output/hessian/inputs/bert-base-uncased/AdamW/minloss"
-output_dir: "output/plot/inputs/bert-base-uncased/AdamW/minloss"
+use_safetensors: True
+
+hessian_dir: "output/hessian/inputs/bert-base-uncased/AdamW/minloss/data_${dataloader.data_index}"
+output_dir: "output/plot/inputs/bert-base-uncased/AdamW/minloss/data_${dataloader.data_index}"
+
 perterbation_sets: 
 - [-0.1, -0.08, -0.06, -0.04, -0.02, 0, 0.02, 0.04, 0.06, 0.08, 0.1]
 - [-0.2, -0.16, -0.12, -0.08, -0.04, 0, 0.04, 0.08, 0.12, 0.16, 0.2]

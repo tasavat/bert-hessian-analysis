@@ -18,16 +18,83 @@ from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
 )
+from transformers.modeling_outputs import BaseModelOutputWithPoolingAndCrossAttentions
 
 
 class ModelWrapper(torch.nn.Module):
     def __init__(self, model):
         super().__init__()
         self.model = model
+        
+        self.embeddings = self.model.bert.embeddings        
+        self.encoder = self.model.bert.encoder
 
-    def forward(self, inputs, attention_mask):
+    def forward(
+        self, 
+        inputs, 
+        attention_mask,
+        embed_forward=False,
+        encode_forward=False,
+        embeddings=None,
+    ):
+        if embed_forward:
+            embeddings = self._embed_forward(inputs)
+            return embeddings
+        if encode_forward:
+            assert embeddings is not None, "embeddings must be provided"
+            return self._encode_forward(inputs, embeddings, attention_mask)
         outputs = self.model(inputs, attention_mask=attention_mask)
         logits = outputs.logits
+        return logits
+    
+    def _embed_forward(self, inputs):
+        with torch.no_grad():
+            embeddings = self.embeddings(
+                input_ids=inputs,
+                position_ids=None,
+                token_type_ids=None,
+                inputs_embeds=None,
+                past_key_values_length=0,
+            )
+        return embeddings
+    
+    def _encode_forward(self, inputs, embeddings, attention_mask):
+        input_shape = inputs.size()
+        extended_attention_mask = self.model.get_extended_attention_mask(attention_mask, input_shape)
+        head_mask = self.model.get_head_mask(None, self.model.config.num_hidden_layers)
+        output_attentions = self.model.config.output_attentions
+        output_hidden_states = self.model.config.output_hidden_states
+        return_dict = self.model.config.use_return_dict
+        
+        encoder_outputs = self.encoder(
+            embeddings, 
+            attention_mask=extended_attention_mask,
+            head_mask=head_mask,
+            encoder_hidden_states=None,
+            encoder_attention_mask=None,
+            past_key_values=None,
+            use_cache=False,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+        sequence_output = encoder_outputs[0]
+        pooled_output = self.model.bert.pooler(sequence_output) if self.model.bert.pooler is not None else None
+        
+        if not return_dict:
+            return (sequence_output, pooled_output) + encoder_outputs[1:]
+        
+        bert_outputs = BaseModelOutputWithPoolingAndCrossAttentions(
+            last_hidden_state=sequence_output,
+            pooler_output=pooled_output,
+            past_key_values=encoder_outputs.past_key_values,
+            hidden_states=encoder_outputs.hidden_states,
+            attentions=encoder_outputs.attentions,
+            cross_attentions=encoder_outputs.cross_attentions,
+        )
+        pooled_output = bert_outputs[1]
+        pooled_output = self.model.dropout(pooled_output)
+        logits = self.model.classifier(pooled_output)
         return logits
 
 
@@ -117,7 +184,7 @@ def main(cfg):
     assert cfg.dataloader.batch_size % cfg.dataloader.mini_batch_size == 0, "Batch size must be divisible by mini batch size."
 
     # model
-    model = AutoModelForSequenceClassification.from_pretrained(cfg.model, use_safetensors=True)
+    model = AutoModelForSequenceClassification.from_pretrained(cfg.model, use_safetensors=cfg.use_safetensors)
     model = ModelWrapper(model)
     model = model.cuda()
     model = torch.nn.DataParallel(model, device_ids=cfg.dataloader.device_ids)

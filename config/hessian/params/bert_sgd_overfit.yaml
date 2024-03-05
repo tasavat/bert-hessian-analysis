@@ -23,6 +23,7 @@ dataloader:
   device_ids: null
 
 model: "ckpt/bert-base-uncased/SGD_lr1e-2/checkpoint-14040"
+use_safetensors: True
 
 hessian:
   top_n: 15

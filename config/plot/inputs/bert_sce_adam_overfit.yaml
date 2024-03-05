@@ -20,14 +20,16 @@ tokenizer:
 dataloader:
   batch_size: 800
   mini_batch_size: 800
-  device_ids: null
+  data_index: 0
 
 model: "ckpt/princeton-nlp/unsup-simcse-bert-base-uncased/AdamW_lr1e-6/checkpoint-14040"
-hessian_dir: "output/hessian/inputs/princeton-nlp-unsup-simcse-bert-base-uncased/AdamW/overfit"
-output_dir: "output/plot/inputs/princeton-nlp-unsup-simcse-bert-base-uncased/AdamW/overfit"
+use_safetensors: True
+
+hessian_dir: "output/hessian/inputs/princeton-nlp-unsup-simcse-bert-base-uncased/AdamW/overfit/data_${dataloader.data_index}"
+output_dir: "output/plot/inputs/princeton-nlp-unsup-simcse-bert-base-uncased/AdamW/overfit/data_${dataloader.data_index}"
+
 perterbation_sets: 
 - [-0.1, -0.08, -0.06, -0.04, -0.02, 0, 0.02, 0.04, 0.06, 0.08, 0.1]
 - [-0.2, -0.16, -0.12, -0.08, -0.04, 0, 0.04, 0.08, 0.12, 0.16, 0.2]
 - [-0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5]
 - [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1]
-

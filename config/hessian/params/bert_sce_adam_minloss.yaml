@@ -23,6 +23,7 @@ dataloader:
   device_ids: null
 
 model: "ckpt/princeton-nlp/unsup-simcse-bert-base-uncased/AdamW_lr1e-6/checkpoint-2808"
+use_safetensors: True
 
 hessian:
   top_n: 15

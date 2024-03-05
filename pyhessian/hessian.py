@@ -99,7 +99,10 @@ class hessian():
         params, gradsH = get_params_grad(self.model)
         self.params = params
         self.gradsH = gradsH  # gradient used for Hessian computation
-        self.embedding = embeddings if self._backprop_inputs else None
+        
+        self.embeddings = embeddings if self._backprop_inputs else None
+        self.attention_masks = self.attention_masks if self._backprop_inputs else None
+        self.targets = self.targets if self._backprop_inputs else None
 
     def dataloader_hv_product(self, v):
 
@@ -165,7 +168,7 @@ class hessian():
                     tmp_eigenvalue, Hv = self.dataloader_hv_product(v)
                 else:
                     if self._backprop_inputs:
-                        Hv = hessian_vector_product(self.embedding.grad, self.embedding, v)
+                        Hv = hessian_vector_product(self.embeddings.grad, self.embeddings, v)
                     else: 
                         Hv = hessian_vector_product(self.gradsH, self.params, v)
                     tmp_eigenvalue = group_product(Hv, v).cpu().item()
@@ -199,7 +202,7 @@ class hessian():
         for i in range(maxIter):
             self.model.zero_grad()
             if self._backprop_inputs:
-                v = [torch.rand_like(self.embedding)]
+                v = [torch.rand_like(self.embeddings)]
             else:
                 v = [torch.randint_like(p, high=2, device=device) for p in self.params]
             # generate Rademacher random variables
@@ -210,7 +213,7 @@ class hessian():
                 _, Hv = self.dataloader_hv_product(v)
             else:
                 if self._backprop_inputs:
-                    Hv = hessian_vector_product(self.embedding.grad, self.embedding, v)
+                    Hv = hessian_vector_product(self.embeddings.grad, self.embeddings, v)
                 else:
                     Hv = hessian_vector_product(self.gradsH, self.params, v)
             trace_vhv.append(group_product(Hv, v).cpu().item())

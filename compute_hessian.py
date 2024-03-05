@@ -143,7 +143,7 @@ def _convert_to_numpy(tensor_list):
     return tensor_list
 
 
-def _dump_to_json(cfg, top_eigenvalues, trace):
+def _dump_hessian_json(cfg, top_eigenvalues, trace):
     if not os.path.exists(cfg.output_dir):
         os.makedirs(cfg.output_dir)
     output_path = os.path.join(cfg.output_dir, "hessian.json")
@@ -154,7 +154,7 @@ def _dump_to_json(cfg, top_eigenvalues, trace):
         }, f)
 
 
-def _dump_numpy(cfg, top_eigenvectors, output_dir=None):
+def _dump_eigenvectors(cfg, top_eigenvectors, output_dir=None):
     output_dir = output_dir if output_dir else os.path.join(cfg.output_dir, "eigenvectors")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -163,9 +163,32 @@ def _dump_numpy(cfg, top_eigenvectors, output_dir=None):
             output_path = os.path.join(output_dir, f"{i}.npy")
             np.save(output_path, eigenvector)
         elif isinstance(eigenvector, list):
-            _dump_numpy(cfg, eigenvector, output_dir=os.path.join(output_dir, str(i)))
+            _dump_eigenvectors(cfg, eigenvector, output_dir=os.path.join(output_dir, str(i)))
         else:
             raise ValueError("Invalid type of eigenvector", type(eigenvector))
+
+def _dump_data(cfg, embedding, attention_masks, targets):
+    _dump_embedding(cfg, embedding)
+    _dump_attention_masks(cfg, attention_masks)
+    _dump_targets(cfg, targets)
+
+def _dump_embedding(cfg, embedding):
+    output_path = os.path.join(cfg.output_dir, "embedding.npy")
+    if type(embedding) is torch.Tensor:
+        embedding = embedding.cpu().detach().numpy()
+    np.save(output_path, embedding)
+
+def _dump_attention_masks(cfg, attention_masks):
+    output_path = os.path.join(cfg.output_dir, "attention_masks.npy")
+    if type(attention_masks) is torch.Tensor:
+        attention_masks = attention_masks.cpu().detach().numpy()
+    np.save(output_path, attention_masks)
+
+def _dump_targets(cfg, targets):
+    output_path = os.path.join(cfg.output_dir, "targets.npy")
+    if type(targets) is torch.Tensor:
+        targets = targets.cpu().detach().numpy()
+    np.save(output_path, targets)
 
 
 @hydra.main(config_path="config/hessian", config_name="")
@@ -191,7 +214,7 @@ def main(cfg):
     hessian_dataloader, batch_num = _convert_to_hessian_dataloader(dataloader, cfg.hessian.backprop_inputs, cfg.dataloader)
 
     # model
-    model = AutoModelForSequenceClassification.from_pretrained(cfg.model, use_safetensors=True)
+    model = AutoModelForSequenceClassification.from_pretrained(cfg.model, use_safetensors=cfg.use_safetensors)
     model = ModelWrapper(model)
     model = model.cuda()
     if not cfg.hessian.backprop_inputs:
@@ -219,8 +242,10 @@ def main(cfg):
     top_eigenvalues, top_eigenvectors = hessian_comp.eigenvalues(top_n=cfg.hessian.top_n)
     top_eigenvectors = _convert_to_numpy(top_eigenvectors)
     trace = hessian_comp.trace()
-    _dump_to_json(cfg, top_eigenvalues, trace)
-    _dump_numpy(cfg, top_eigenvectors)
+    _dump_hessian_json(cfg, top_eigenvalues, trace)
+    _dump_eigenvectors(cfg, top_eigenvectors)
+    if cfg.hessian.backprop_inputs:
+        _dump_data(cfg, hessian_comp.embeddings, hessian_comp.attention_masks, hessian_comp.targets)
     print('********** finish Hessian computation **********')
 
 

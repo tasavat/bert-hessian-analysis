@@ -21,9 +21,9 @@ dataloader:
   hessian_batch_size: 800
   mini_hessian_batch_size: 1
   data_index: 0
-  device_ids: null
 
 model: "princeton-nlp/unsup-simcse-bert-base-uncased"
+use_safetensors: False
 
 hessian:
   top_n: 15

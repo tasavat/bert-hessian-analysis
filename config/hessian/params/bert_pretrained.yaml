@@ -23,6 +23,7 @@ dataloader:
   device_ids: null
 
 model: "bert-base-uncased"
+use_safetensors: False
 
 hessian:
   top_n: 15

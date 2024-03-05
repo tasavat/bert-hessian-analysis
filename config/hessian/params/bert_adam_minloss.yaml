@@ -23,6 +23,7 @@ dataloader:
   device_ids: null
 
 model: "ckpt/bert-base-uncased/AdamW_lr1e-6/checkpoint-4212"
+use_safetensors: True
 
 hessian:
   top_n: 15
