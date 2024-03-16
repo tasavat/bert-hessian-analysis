@@ -18,10 +18,11 @@
 # along with PyHessian.  If not, see <http://www.gnu.org/licenses/>.
 # *
 
-import torch
 import math
-from torch.autograd import Variable
+
 import numpy as np
+import torch
+from torch.autograd import Variable
 
 
 def group_product(xs, ys):

@@ -1,24 +1,20 @@
 from __future__ import annotations
+
+import itertools
+import json
+import os
 from copy import deepcopy
-from tqdm import tqdm
 
 import hydra
-import os
-import json
-import itertools
-
-import numpy as np
 import matplotlib.pyplot as plt
-
+import numpy as np
 import torch
+from tqdm import tqdm
 
 torch.manual_seed(0)
 
 from datasets import load_dataset
-from transformers import (
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-)
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from transformers.modeling_outputs import BaseModelOutputWithPoolingAndCrossAttentions
 
 
@@ -166,7 +162,7 @@ def _plot_loss_landscape(
     print(f"Loss landscape plot saved to {output_dir}.")
 
 
-@hydra.main(config_path="config/plot", config_name="")
+@hydra.main(config_path="config/plot/params", config_name="")
 def main(cfg):
     # dataset
     dataset = load_dataset(cfg.dataset.name, cfg.dataset.task_name)

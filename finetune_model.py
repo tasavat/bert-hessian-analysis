@@ -6,11 +6,10 @@ Training configurations can be found under config/ directory.
 
 import os
 
+import evaluate
 import hydra
 import numpy as np
 import torch.optim as optim
-import evaluate
-
 from datasets import load_dataset
 from transformers import (
     AutoModelForSequenceClassification,

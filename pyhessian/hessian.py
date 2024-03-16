@@ -18,18 +18,19 @@
 # along with PyHessian.  If not, see <http://www.gnu.org/licenses/>.
 # *
 
-import torch
 import math
-from torch.autograd import Variable
-import numpy as np
 
+import numpy as np
+import torch
+from torch.autograd import Variable
 from tqdm import tqdm
+
 from pyhessian.utils import (
-    group_product,
-    group_add,
-    normalization,
     get_params_grad,
+    group_add,
+    group_product,
     hessian_vector_product,
+    normalization,
     orthnormal,
 )
 

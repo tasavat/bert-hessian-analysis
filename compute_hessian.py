@@ -2,21 +2,19 @@
 参考: https://github.com/amirgholami/PyHessian/blob/master/example_pyhessian_analysis.py
 """
 
-import hydra
-import os
 import json
+import os
 
+import hydra
 import numpy as np
 import torch
 
 torch.manual_seed(0)
 
 from datasets import load_dataset
-from transformers import (
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-)
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from transformers.modeling_outputs import BaseModelOutputWithPoolingAndCrossAttentions
+
 from pyhessian import hessian
 
 

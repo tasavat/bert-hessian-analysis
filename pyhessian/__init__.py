@@ -22,12 +22,12 @@ import argparse
 import importlib
 import os
 
+from .hessian import hessian
 from .utils import (
-    group_product,
-    group_add,
-    normalization,
     get_params_grad,
+    group_add,
+    group_product,
     hessian_vector_product,
+    normalization,
     orthnormal,
 )
-from .hessian import hessian
