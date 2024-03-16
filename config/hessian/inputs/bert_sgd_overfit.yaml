@@ -22,7 +22,7 @@ dataloader:
   mini_hessian_batch_size: 1
   data_index: 0
 
-model: "ckpt/bert-base-uncased/SGD_lr1e-2/checkpoint-14040"
+model: "ckpt/${dataset.task_name}/bert-base-uncased/SGD_lr1e-2/checkpoint-14040"
 use_safetensors: True
 
 hessian:

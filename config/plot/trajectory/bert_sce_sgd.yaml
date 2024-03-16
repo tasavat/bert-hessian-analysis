@@ -1,0 +1,49 @@
+## Hydra Settings ##
+defaults:  
+  - _self_  
+  - override hydra/hydra_logging: disabled  
+  - override hydra/job_logging: disabled  
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+
+## Finetuning Settings ##
+dataset:
+  name: glue
+  task_name: sst2
+  text_column_name: sentence
+
+tokenizer:
+  name: bert-base-uncased
+
+dataloader:
+  batch_size: 800
+  mini_batch_size: 800
+  device_ids: null
+
+models: 
+- "princeton-nlp/unsup-simcse-bert-base-uncased"
+- "ckpt/sst2/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-14040"
+- "ckpt/cola/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr0.005/checkpoint-5350"
+use_safetensors:
+- False
+- True
+- True
+
+perterbation_sets: 
+- [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1]
+
+trajectory_models:
+- "ckpt/sst2/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-1404"
+- "ckpt/sst2/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-2808"
+- "ckpt/sst2/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-4212"
+- "ckpt/sst2/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-5616"
+- "ckpt/sst2/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-7020"
+- "ckpt/sst2/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-8424"
+- "ckpt/sst2/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-9828"
+- "ckpt/sst2/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-11232"
+- "ckpt/sst2/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-12636"
+- "ckpt/sst2/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-14040"
+
+output_dir: "output/plot/trajectory/princeton-nlp-unsup-simcse-bert-base-uncased/SGD"

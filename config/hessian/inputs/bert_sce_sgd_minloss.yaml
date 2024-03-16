@@ -22,7 +22,7 @@ dataloader:
   mini_hessian_batch_size: 1
   data_index: 0
 
-model: "ckpt/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-2808"
+model: "ckpt/${dataset.task_name}/princeton-nlp/unsup-simcse-bert-base-uncased/SGD_lr1e-2/checkpoint-2808"
 use_safetensors: True
 
 hessian:

@@ -22,7 +22,7 @@ dataloader:
   mini_batch_size: 800
   device_ids: null
 
-model: "ckpt/bert-base-uncased/AdamW_lr1e-6/checkpoint-14040"
+model: "ckpt/${dataset.task_name}/bert-base-uncased/AdamW_lr1e-6/checkpoint-14040"
 use_safetensors: True
 
 hessian_dir: "output/hessian/params/bert-base-uncased/AdamW/overfit"

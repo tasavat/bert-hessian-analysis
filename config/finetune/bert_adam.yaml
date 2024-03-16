@@ -11,7 +11,7 @@ hydra:
 ## Finetuning Settings ##
 dataset:
   name: glue
-  task_name: sst2
+  task_name: sst2  # sst2, cola
   text_column_name: sentence
   num_labels: 2
 
@@ -33,7 +33,7 @@ scheduler:
   name: LinearLR
 
 training_args:
-  output_dir: ckpt/${model.prefix}${model.name}/${optim.name}
+  output_dir: ckpt/${dataset.task_name}/${model.prefix}${model.name}/${optim.name}_lr${optim.params.lr}
   evaluation_strategy: steps
   eval_steps: 0.1
   save_steps: 0.1
